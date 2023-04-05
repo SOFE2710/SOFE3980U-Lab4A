@@ -1,7 +1,17 @@
+// Change Update
 pipeline {
   agent any
   tools {
     maven 'maven' 
+    docker 'docker'
+  }
+  environment {
+    PROJECT = "lab-4-deliverable"
+    APP_NAME = "binary-calculator2"
+    CLUSTER = "sofe3980u"
+    CLUSTER_ZONE = "northamerica-northeast1-b"
+    IMAGE_TAG = "gcr.io/${PROJECT}/${APP_NAME}"
+    JENKINS_CRED = "310349070498-compute@developer.gserviceaccount.com"
   }
   stages {
     stage ('Init') {
@@ -18,11 +28,17 @@ pipeline {
     stage ('build') {
       steps {
         sh 'mvn package -DskipTests -f ./BinaryCalculatorWebapp/pom.xml'
+        sh 'docker build -t ${IMAGE_TAG} .'
+        sh 'gcloud auth activate-service-account --key-file /var/lib/jenkins/creds.json'
+        sh 'gcloud auth configure-docker'
+        sh 'docker push ${IMAGE_TAG}' 
       }
     }
     stage ('Deploy') {
       steps {
-        sh 'echo "bye bye"'
+        sh 'gcloud auth activate-service-account --key-file /var/lib/jenkins/creds.json'
+        sh 'gcloud container clusters get-credentials ${CLUSTER} --zone ${CLUSTER_ZONE} --project ${PROJECT}'
+        sh 'kubectl apply -f ./kubernetes/manifests'
       }
     }
   }
